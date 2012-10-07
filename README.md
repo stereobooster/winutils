@@ -15,21 +15,49 @@ This gem doesn't contain utilities itself, it's just "umbrella" gem for gems wit
 
 ## Solution
 
+### Wrapper
 We have following options:
  * Use rubygems `executables` option. Fits only for standalone "portable" executables. If executable depends on external resources (like `git`), this will fail.
- * Implement ruby wrapper for executable. This executable will be exposed throught `executables` option. It will call original executable in subprocess with changed environmental variable `PATH` (added vendor folder). All input (`arguments`) and output (`stdin`, `stdout`, `exitstatus`) will be proxified. Cons of this solution - every executable requires wrapper. It's possible to automate generation of those wrappers. This solution will fit for standalone executable? like `git` or `python`
+ * Implement ruby wrapper for executable. This executable will be exposed throught `executables` option. It will call original executable in subprocess with changed environmental variable `PATH` (added vendor folder). All input (`arguments`) and output (`stdin`, `stdout`, `exitstatus`) will be proxified. Cons of this solution - every executable requires wrapper. It's possible to automate generation of those wrappers. This solution will fit for standalone executable, like `git` or `python`
  * Use proxy executable, like `bundle exec command`. It will execute command in subprocess with right environment (`PATH`) seted and pass input and output.
  * Command which will set up environment.
    * Problem here - you can't change environment of current process (i.e. console) from child process (i.e. ruby script). It is possible to print out required changes of environment, so that parent process can apply them. To apply those changes we need to control parent process, it can be done with shell script (bat). But bat-files can't be exposed as gem executables, beacuse every gem executable get it's bat-wrapper. And to execute one bat from another it's requires special syntax (`call`). TODO: report this bug to rubygems.
    * Additionally check of current environment required, to be able to call script more than one time.
    * One more variant generate bat-file in project root. And use this generated script for environment setup.
-   * [gem-exefy](/bosko/gem-exefy)
+   * [gem-exefy](/bosko/gem-exefy) RubyGems plugin for replacing Windows batch files used in Gems with executables with same name.
+
+### Packaging
+We have following options:
+ * Pack executables inside rubygem
+   * Bigger size of gems
+   * To update executable you will need update gem every time
+ * Download executables when installing rubygem
+   * In case of failing external servers users will be unable to install gems
+   * Installations of existing gems will stop work in case of changing of download path
+
+Ideas:
+ * Use reciepes like in [rubyinstaller](/oneclick/rubyinstaller), to download and unpack executables. Those reciepces can be used as prototype to the future solution (like `babushka`).
+ * Version of the gem is the same as the version of the packed executable plus one more number, like in [libv8](/cowboyd/libv8/blob/master/lib/libv8/version.rb#L2)
+ * Pack gems as native gems, to specify targeted OS and architecture
+
+## Ruby gems which relies on external executables
+### Examples
+ * [grit](/mojombo/grit)
+ * [mini_magick](/probablycorey/mini_magick)
+ * [optipng](/martinkozak/optipng)
+ * [jpegtran](/martinkozak/jpegtran)
+
+### Drop-in solution
+Maybe it will be good idea to modify gems dependent on external executables, so they check if companion winutils gem available. And if it's available it will use direct path to executable reported by companion gem.
+
+### Spawn
+There are plenty ways to spawn process in ruby. One of the best way to do it on *nix system is using [posix-spawn](/rtomayko/posix-spawn). Currently posix-spawn doesn't support Windows see [issue](/rtomayko/posix-spawn/pull/30)
 
 ## Inspiration
 
 List of sources for further inspiration
 
- * [GOW](https://github.com/bmatzelle/gow/wiki)
+ * [GOW](/bmatzelle/gow/wiki)
  * [homebrew](/mxcl/homebrew) + [brewdler](/andrew/brewdler)
  * [babushka](/benhoskings/babushka)
  * [chocolatey](http://chocolatey.org/)
